@@ -1,0 +1,35 @@
+# robots.txt - запрет индексации для поисковых систем
+User-agent: *
+Disallow: /
+
+# Запрещаем все поисковым системам
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Yandex
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+# Разрешаем только нашу функцию (если нужно)
+Allow: /api/*
+Allow: /.netlify/functions/*
+
+# Карта сайта (если позже решите открыть)
+# Sitemap: https://mellow-sawine-0c081d.netlify.app/sitemap.xml
+
+# Комментарий: DnD игра, не для индексации
+# Создано: $(date)

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Новогодний DnD - Игра</title>
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+    <meta name="yandex" content="none">
+    <meta name="bingbot" content="noindex, nofollow">
+    <meta name="slurp" content="noydir">
+    <meta name="referrer" content="no-referrer">
+    <link rel="stylesheet" href="styles/mobile.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Шапка с информацией о игре -->
+        <header class="game-header">
+            <div class="campaign-info">
+                <h1 id="campaignTitle">🎄 Новогодний Заговор</h1>
+                <div id="locationInfo">🏙️ Город Златогрив</div>
+            </div>
+            <div class="game-controls">
+                <button id="menuBtn">☰</button>
+                <button id="settingsBtn">⚙️</button>
+            </div>
+        </header>
+        
+        <!-- Лог игры -->
+        <div class="game-log" id="gameLog">
+            <div class="log-entry dm-message">
+                <div class="sender">🎲 DM</div>
+                <div class="message">[треск камина] Добро пожаловать в Златогрив! Воздух густой от магии и жареного гуся. Куда вас занесло, банда абсурда?</div>
+            </div>
+        </div>
+        
+        <!-- Статус персонажей (горизонтальный скролл) -->
+        <div class="party-status" id="partyStatus">
+            <!-- Динамически заполняется -->
+        </div>
+        
+        <!-- Панель управления -->
+        <div class="control-panel">
+            <!-- Кнопка записи голоса -->
+            <div class="voice-controls">
+                <button id="recordBtn" class="control-btn voice-btn">
+                    <span class="btn-icon">🎤</span>
+                    <span class="btn-label">Говорить</span>
+                </button>
+                <button id="stopBtn" class="control-btn stop-btn" disabled>
+                    <span class="btn-icon">⏹️</span>
+                    <span class="btn-label">Стоп</span>
+                </button>
+            </div>
+            
+            <!-- Быстрые действия -->
+            <div class="quick-actions">
+                <button class="action-btn dice-btn" data-action="d20">
+                    <span>🎲 d20</span>
+                </button>
+                <button class="action-btn group-btn" data-action="group">
+                    <span>👥 Группа</span>
+                </button>
+                <button class="action-btn stealth-btn" data-action="stealth">
+                    <span>🥷 Скрыться</span>
+                </button>
+                <button class="action-btn persuade-btn" data-action="persuade">
+                    <span>💬 Убедить</span>
+                </button>
+            </div>
+            
+            <!-- Действия для конкретных героев -->
+            <div class="character-actions" id="characterActions">
+                <!-- Динамически заполняется -->
+            </div>
+        </div>
+        
+        <!-- Статусная строка -->
+        <div class="status-bar" id="statusBar">
+            Загружаю игру...
+        </div>
+        
+        <!-- Меню (скрыто по умолчанию) -->
+        <div class="side-menu" id="sideMenu">
+            <div class="menu-header">
+                <h3>🎲 Меню игры</h3>
+                <button class="close-menu">×</button>
+            </div>
+            <div class="menu-content">
+                <button class="menu-item" data-action="characters">
+                    👥 Персонажи
+                </button>
+                <button class="menu-item" data-action="rules">
+                    📜 Правила
+                </button>
+                <button class="menu-item" data-action="save">
+                    💾 Сохранить сессию
+                </button>
+                <button class="menu-item danger" data-action="reset">
+                    🔄 Новая игра
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальные окна -->
+    <div id="characterModal" class="modal"></div>
+    
+    <script>
+        // Глобальные переменные
+        let game = null;
+        let scriptsLoaded = false;
+        
+        // Функция для последовательной загрузки скриптов
+        function loadScripts() {
+            const scripts = [
+                'scripts/deepseek-api.js',
+                'scripts/dice-roller.js',
+                'scripts/voice-manager.js',
+                'scripts/game-manager.js'
+            ];
+            
+            function loadNextScript() {
+                if (scripts.length === 0) {
+                    // Все скрипты загружены
+                    scriptsLoaded = true;
+                    initializeGame();
+                    return;
+                }
+                
+                const scriptUrl = scripts.shift();
+                console.log('Загружаю скрипт:', scriptUrl);
+                
+                const script = document.createElement('script');
+                script.src = scriptUrl;
+                script.onload = loadNextScript;
+                script.onerror = function() {
+                    console.error('Ошибка загрузки скрипта:', scriptUrl);
+                    // Пробуем загрузить следующий, даже если этот не загрузился
+                    loadNextScript();
+                };
+                document.body.appendChild(script);
+            }
+            
+            loadNextScript();
+        }
+        
+        // Инициализация игры после загрузки скриптов
+        function initializeGame() {
+            console.log('Инициализирую игру...');
+            
+            try {
+                // Проверяем, что все необходимые классы определены
+                if (typeof DnDGame === 'undefined') {
+                    console.error('Класс DnDGame не определен');
+                    document.getElementById('statusBar').textContent = 'Ошибка: игра не загружена';
+                    return;
+                }
+                
+                // Создаем экземпляр игры
+                game = new DnDGame();
+                
+                // Устанавливаем глобально для доступа из HTML
+                window.game = game;
+                
+                // Инициализируем игру
+                game.init().then(() => {
+                    console.log('Игра успешно инициализирована');
+                    document.getElementById('statusBar').textContent = 'Готов к приключениям! Нажмите 🎤 чтобы говорить';
+                    
+                    // Назначаем обработчики кнопок
+                    setupEventListeners();
+                    
+                }).catch(error => {
+                    console.error('Ошибка инициализации игры:', error);
+                    document.getElementById('statusBar').textContent = `Ошибка: ${error.message}`;
+                });
+                
+            } catch (error) {
+                console.error('Критическая ошибка при создании игры:', error);
+                document.getElementById('statusBar').textContent = `Критическая ошибка: ${error.message}`;
+            }
+        }
+        
+        // Настройка обработчиков событий
+        function setupEventListeners() {
+            if (!game) return;
+            
+            // Меню
+            document.getElementById('menuBtn').onclick = toggleMenu;
+            document.getElementById('settingsBtn').onclick = showSettings;
+            document.querySelector('.close-menu').onclick = toggleMenu;
+            
+            // Быстрые действия
+            document.querySelectorAll('[data-action]').forEach(button => {
+                const action = button.getAttribute('data-action');
+                button.onclick = function() {
+                    handleAction(action);
+                };
+            });
+            
+            // Элементы меню
+            document.querySelectorAll('.menu-item').forEach(item => {
+                const action = item.getAttribute('data-action');
+                item.onclick = function() {
+                    handleMenuAction(action);
+                    toggleMenu();
+                };
+            });
+        }
+        
+        // Обработка действий
+        function handleAction(action) {
+            if (!game) return;
+            
+            switch(action) {
+                case 'd20':
+                    game.quickAction('d20');
+                    break;
+                case 'group':
+                    game.quickAction('group');
+                    break;
+                case 'stealth':
+                    game.quickAction('stealth');
+                    break;
+                case 'persuade':
+                    game.quickAction('persuade');
+                    break;
+            }
+        }
+        
+        // Обработка действий меню
+        function handleMenuAction(action) {
+            if (!game) return;
+            
+            switch(action) {
+                case 'characters':
+                    game.showCharacters();
+                    break;
+                case 'rules':
+                    game.showRules();
+                    break;
+                case 'save':
+                    game.saveSession();
+                    break;
+                case 'reset':
+                    if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
+                        game.resetGame();
+                    }
+                    break;
+            }
+        }
+        
+        // Функции для меню (заглушки, если game не определил методы)
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            menu.classList.toggle('active');
+        }
+        
+        function showSettings() {
+            alert('Настройки игры');
+        }
+        
+        // Показать сообщение об ошибке
+        function showError(message) {
+            document.getElementById('statusBar').textContent = `Ошибка: ${message}`;
+            console.error(message);
+        }
+        
+        // Проверка совместимости браузера
+        function checkCompatibility() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showError('Ваш браузер не поддерживает распознавание речи');
+                return false;
+            }
+            
+            if (!('speechSynthesis' in window)) {
+                showError('Ваш браузер не поддерживает синтез речи');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Запуск при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM загружен, проверяю совместимость...');
+            
+            if (!checkCompatibility()) {
+                return;
+            }
+            
+            // Начинаем загрузку скриптов
+            loadScripts();
+        });
+        
+        // Обработка ошибок window
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Глобальная ошибка:', message, 'в', source, 'строка', lineno);
+            document.getElementById('statusBar').textContent = `Ошибка: ${message}`;
+            return true;
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>🎲 Настройка Новогодней DnD</title>
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="yandex" content="none">
+    <meta name="bingbot" content="noindex, nofollow">
+    <link rel="stylesheet" href="styles/desktop.css">
+    <!-- Загружаем QRCode библиотеку В НАЧАЛЕ -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎄 Новогодний DnD Мастер</h1>
+            <p class="subtitle">Настройка хулиганской кампании в стиле "Рик и Морти от гномов"</p>
+        </div>
+        
+        <div class="setup-section">
+            <h2>📋 Основные настройки</h2>
+            
+            <div class="input-group">
+                <label>Название кампании:</label>
+                <input type="text" id="campaignName" value="Новогодний Заговор в Златогриве">
+            </div>
+            
+            <div class="input-group">
+                <label>Стиль DM:</label>
+                <textarea id="dmStyle" rows="3">Лёгкий, быстрый, с постоянным фоновым хулиганским подтекстом. Как анимация от «Рика и Морти», если бы её делали гномы-пивовары. Смех и нелепость — наши цели.</textarea>
+            </div>
+            
+            <div class="input-group">
+                <label>Текущая ситуация:</label>
+                <textarea id="situation" rows="4">Город Златогрив. Канун Нового Года. Воздух дрожит от магии подарков и запаха жареного. Группа только что вошла в город, повсюду праздничная суета.</textarea>
+            </div>
+        </div>
+        
+        <div class="characters-section">
+            <h2>🎭 Персонажи</h2>
+            <div id="charactersList">
+                <!-- Герои загружаются из JSON -->
+            </div>
+        </div>
+        
+        <div class="rules-section">
+            <h2>🎲 Правила бросков</h2>
+            <div class="rules">
+                <div class="rule">
+                    <h4>Критические броски</h4>
+                    <p>Натуральные 1 и 20 — абсолютны. 1 = эпикфейл с последствиями. 20 = чудо.</p>
+                </div>
+                <div class="rule">
+                    <h4>Групповые проверки</h4>
+                    <p>Конкретные герои кидают свои кубы. Остальная группа — ОБЩИЙ КУБ (один d20 за всех). 
+                    К общему кубу применяется ХУДШИЙ модификатор.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <button id="saveBtn" class="btn save-btn">💾 Сохранить игру</button>
+            <button id="mobileBtn" class="btn mobile-btn">📱 Получить ссылку для телефона</button>
+            <button id="exportBtn" class="btn export-btn">📥 Экспорт конфигурации</button>
+        </div>
+        
+        <div id="mobileLink" class="mobile-link" style="display: none;">
+            <h3>📱 Ссылка для игры на телефоне:</h3>
+            <input type="text" id="gameUrl" readonly>
+            <button id="copyBtn" class="btn copy-btn">📋 Копировать</button>
+            <div id="qrcode"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Глобальные переменные
+        let gameConfig = null;
+        
+        // Загрузка героев при старте
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('data/characters.json');
+                const data = await response.json();
+                loadCharacters(data.characters);
+                gameConfig = data; // Сохраняем конфиг
+            } catch (error) {
+                console.error('Ошибка загрузки characters.json:', error);
+                loadCharacters([]);
+                gameConfig = getDefaultConfig();
+            }
+            
+            // Назначаем обработчики кнопок
+            document.getElementById('saveBtn').onclick = saveGame;
+            document.getElementById('mobileBtn').onclick = generateMobileLink;
+            document.getElementById('exportBtn').onclick = exportConfig;
+            document.getElementById('copyBtn').onclick = copyLink;
+        });
+        
+        function getDefaultConfig() {
+            return {
+                campaignName: 'Новогодний Заговор в Златогриве',
+                dmStyle: 'Лёгкий, быстрый, с постоянным фоновым хулиганским подтекстом.',
+                diceRules: {
+                    criticals: 'Натуральные 1 и 20 — абсолютны. 1 = эпикфейл с последствиями. 20 = чудо.',
+                    groupChecks: 'Конкретные герои кидают свои кубы. Остальная группа — ОБЩИЙ КУБ.'
+                },
+                characters: []
+            };
+        }
+        
+        function loadCharacters(characters) {
+            const container = document.getElementById('charactersList');
+            if (!container) return;
+            
+            container.innerHTML = characters.map(char => `
+                <div class="character-card">
+                    <h3>${char.name}</h3>
+                    <p><strong>Раса/Класс:</strong> ${char.race} - ${char.class}</p>
+                    <p><strong>ХП:</strong> ${char.health}/${char.maxHealth}</p>
+                    <p><strong>Черта:</strong> ${char.personality.trait}</p>
+                    <p><strong>Слабость:</strong> ${char.personality.weakness}</p>
+                </div>
+            `).join('');
+        }
+        
+        function saveGame() {
+            if (!gameConfig) {
+                gameConfig = getDefaultConfig();
+            }
+            
+            // Обновляем конфиг из полей ввода
+            gameConfig.campaignName = document.getElementById('campaignName').value;
+            gameConfig.dmStyle = document.getElementById('dmStyle').value;
+            gameConfig.currentSituation = document.getElementById('situation').value;
+            gameConfig.gameId = 'dnd_' + Date.now();
+            gameConfig.timestamp = new Date().toISOString();
+            
+            // Сохраняем в localStorage
+            localStorage.setItem('dndGame', JSON.stringify(gameConfig));
+            
+            // Показываем уведомление
+            showNotification(`Игра сохранена! ID: ${gameConfig.gameId}`);
+            console.log('Игра сохранена:', gameConfig.gameId);
+        }
+        
+        function generateMobileLink() {
+            // Проверяем, сохранена ли игра
+            let config = gameConfig;
+            if (!config || !config.gameId) {
+                saveGame(); // Сохраняем сначала
+                config = gameConfig;
+            }
+            
+            const gameLink = `${window.location.origin}/play.html?game=${config.gameId}`;
+            
+            document.getElementById('gameUrl').value = gameLink;
+            document.getElementById('mobileLink').style.display = 'block';
+            
+            // Генерация QR-кода
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ''; // Очищаем
+            new QRCode(qrContainer, {
+                text: gameLink,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            showNotification('QR-код сгенерирован!');
+        }
+        
+        function copyLink() {
+            const urlInput = document.getElementById('gameUrl');
+            if (!urlInput || !urlInput.value) {
+                showNotification('Сначала сгенерируйте ссылку!');
+                return;
+            }
+            
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999); // Для мобильных
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification('Ссылка скопирована в буфер!');
+                } else {
+                    showNotification('Не удалось скопировать. Скопируйте вручную.');
+                }
+            } catch (err) {
+                // Современный способ копирования
+                navigator.clipboard.writeText(urlInput.value)
+                    .then(() => showNotification('Ссылка скопирована!'))
+                    .catch(() => showNotification('Не удалось скопировать'));
+            }
+        }
+        
+        function exportConfig() {
+            if (!gameConfig) {
+                saveGame();
+            }
+            
+            const configStr = JSON.stringify(gameConfig, null, 2);
+            const blob = new Blob([configStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dnd-game-${gameConfig.gameId || Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('Конфигурация экспортирована!');
+        }
+        
+        function showNotification(message) {
+            // Удаляем старые уведомления
+            const oldNotifications = document.querySelectorAll('.notification');
+            oldNotifications.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: linear-gradient(135deg, #10b981, #34d399);
+                color: white;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+                z-index: 1000;
+                font-weight: 600;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Добавляем стили для анимации
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Автоудаление через 3 секунды
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+                if (style.parentNode) {
+                    style.remove();
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
